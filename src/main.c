@@ -7,7 +7,9 @@ PropertyAnimation *animations[4] = {0};
 GRect to_rect[4];
 int center;
 
-char *digits = "0\n1\n2\n3\n4\n5\n6\n7\n8\n9";
+char digits[4][32];
+int offsets[4][10];
+int order[4][10];
 
 void box_layer_update_proc(Layer *layer, GContext *ctx) {
     GRect bounds = layer_get_bounds(layer);
@@ -23,12 +25,13 @@ void set_digit(int col, int num) {
     Layer *layer = text_layer_get_layer(text_layer[col]);
     
     to_rect[col] = layer_get_frame(layer);
-    to_rect[col].origin.y = (num * -42) + center - 28;
+    to_rect[col].origin.y = (offsets[col][num] * -42) + center - 28;
     
     if(animations[col])
         property_animation_destroy(animations[col]);
     
     animations[col] = property_animation_create_layer_frame(layer, NULL, &to_rect[col]);
+    animation_set_duration((Animation*) animations[col], 1000);
     animation_schedule((Animation*) animations[col]);
 }
 
@@ -45,6 +48,47 @@ void handle_minute_tick(struct tm* tick_time, TimeUnits units_changed) {
     display_time(tick_time);
 }
 
+void fill_digits(int i) {
+    for(int n=0; n<10; ++n) {
+        int p = (order[i][n] * 2) + 4;
+        digits[i][p] = '0' + n;
+        digits[i][p+1] = '\n';
+        
+        if(p < 8) {
+            p += 20;
+            digits[i][p] = '0' + n;
+            digits[i][p+1] = '\n';
+        } else if(p >= 20) {
+            p -= 20;
+            digits[i][p] = '0' + n;
+            digits[i][p+1] = '\n';
+        }
+    }
+    
+    digits[i][28] = '\0';
+}
+
+void fill_offsets(int i) {
+    for(int n=0; n<10; ++n) {
+        offsets[i][n] = order[i][n] + 2;
+    }
+}
+
+void fill_order(int i) {
+    for(int n=0; n<10; ++n) {
+        order[i][n] = n;
+    }
+    
+    for(int n=0; n<10; ++n) {
+        int k = rand() % 10;
+        if(n != k) {
+            int tmp = order[i][k];
+            order[i][k] = order[i][n];
+            order[i][n] = tmp;
+        }
+    }
+}
+
 void handle_init(void) {
     my_window = window_create();
     window_stack_push(my_window, true);
@@ -55,12 +99,18 @@ void handle_init(void) {
     
     center = frame.size.h/2;
     
+    srand(time(NULL));
+    
     for(int i=0; i<4; ++i) {
-        text_layer[i] = text_layer_create(GRect(i*frame.size.w/4, 0, frame.size.w/4, 500));
+        fill_order(i);
+        fill_offsets(i);
+        fill_digits(i);
+        
+        text_layer[i] = text_layer_create(GRect(i*frame.size.w/4, 0, frame.size.w/4, 800));
         text_layer_set_text_color(text_layer[i], GColorWhite);
         text_layer_set_background_color(text_layer[i], GColorClear);
         text_layer_set_font(text_layer[i], fonts_get_system_font(FONT_KEY_BITHAM_42_LIGHT));
-        text_layer_set_text(text_layer[i], digits);
+        text_layer_set_text(text_layer[i], &digits[i][0]);
         text_layer_set_text_alignment(text_layer[i], GTextAlignmentCenter);
         layer_add_child(root_layer, text_layer_get_layer(text_layer[i]));
     }
