@@ -1,18 +1,18 @@
 {
-    "versionLabel": "1.0",
-    "uuid": "0062897a-3a0c-4ca3-9f4b-77e261923a28",
-    "appKeys": {},
-    "longName": "Slider Watch Face",
-    "versionCode": 1,
     "capabilities": [
         ""
     ],
-    "shortName": "Slider",
-    "companyName": "chadheim",
-    "watchapp": {
-        "watchface": true
-    },
+    "appKeys": {},
     "resources": {
         "media": []
+    },
+    "shortName": "Slider",
+    "longName": "Slider Watch Face",
+    "versionCode": 1,
+    "companyName": "chadheim",
+    "versionLabel": "1.0",
+    "uuid": "0062897a-3a0c-4ca3-9f4b-77e261923a28",
+    "watchapp": {
+        "watchface": true
     }
 }

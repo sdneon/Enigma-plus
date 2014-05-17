@@ -38,6 +38,16 @@ void set_digit(int col, int num) {
 void display_time(struct tm* tick_time) {
     int h = tick_time->tm_hour;
     int m = tick_time->tm_min;
+    
+    // If watch is in 12hour mode
+    if(!clock_is_24h_style()) {
+        if(h == 0) { //Midnight to 1am
+            h = 12;
+        } else if(h > 12) { //1pm to 11:59pm
+            h -= 12;
+        }
+    }
+    
     set_digit(0, h/10);
     set_digit(1, h%10);
     set_digit(2, m/10);
