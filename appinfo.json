@@ -1,18 +1,35 @@
 {
-    "capabilities": [
-        ""
-    ],
-    "appKeys": {},
-    "resources": {
-        "media": []
-    },
-    "shortName": "Slider",
-    "longName": "Slider Watch Face",
-    "versionCode": 1,
-    "companyName": "chadheim",
-    "versionLabel": "1.1",
-    "uuid": "0062897a-3a0c-4ca3-9f4b-77e261923a28",
-    "watchapp": {
-        "watchface": true
-    }
+  "capabilities": [
+    ""
+  ],
+  "appKeys": {},
+  "resources": {
+    "media": [
+        {
+            "type": "png",
+            "menuIcon": true,
+            "name": "IMAGE_MENU_ICON",
+            "file": "images/logo.png"
+        },
+        {
+          "type": "png",
+          "name": "EXAMPLE_IMAGE",
+          "file": "images/example-image.png"
+        }
+    ]
+  },
+  "shortName": "Enigma+",
+  "longName": "Enigma+ (Digital, Color) Watch Face",
+  "versionCode": 2,
+  "companyName": "neon",
+  "versionLabel": "2.3",
+  "uuid": "e91a944a-fdbb-4953-8931-f96c7772ffa7",
+  "watchapp": {
+    "watchface": true
+  },
+  "targetPlatforms": [
+    "basalt"
+  ],
+  "sdkVersion": "3"
 }
+
