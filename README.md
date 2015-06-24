@@ -3,7 +3,7 @@ Enigma+
 
 Enigma watch face variant for Pebble Time. (Colour, Digital).
 
-Modified from [chadheim's](https://github.com/chadheim/pebble-watchface-slider) old black & white example:
+Modified from [chadheim's](https://github.com/chadheim/pebble-watchface-slider) old black & white example.
 
 ## Display
 1. 4 of 5 rows of info:
@@ -19,3 +19,13 @@ Modified from [chadheim's](https://github.com/chadheim/pebble-watchface-slider) 
 2. Battery-level indicator: 3rd column.
   * Top down orange bar: charging,
   * bottom-up bar: charge remaining.
+
+### Screenshots
+![screenshot 1](https://raw.githubusercontent.com/sdneon/Enigma-plus/master/store/pebble-screenshot-1-AM.png "Watch face: AM, bluetooth connected, battery not charging")
+Watch face: AM, bluetooth connected, battery not charging
+
+![screenshot 2](https://raw.githubusercontent.com/sdneon/Enigma-plus/master/store/pebble-screenshot-2-AM,DC.png "Watch face: AM, bluetooth disconnected, battery charging")
+Watch face: AM, bluetooth disconnected, battery charging
+
+![screenshot 3](https://raw.githubusercontent.com/sdneon/Enigma-plus/master/store/pebble-screenshot-3-PM,charging.png "Watch face: PM, bluetooth connected, battery charging")
+Watch face: PM, bluetooth connected, battery charging
