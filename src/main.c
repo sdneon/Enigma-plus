@@ -28,16 +28,7 @@ char digits[4][32], digitsBkup[4][32];
 int offsets[4][10];
 int order[4][10];
 bool m_bIsAm = false;
-char DAYS_SINCE_SUN[8][4] = {
-    "SUN",
-    "MON",
-    "TUE",
-    "WED",
-    "THU",
-    "FRI",
-    "SAT",
-    ""
-};
+static char s_dayOfWeek_buffer[4];
 
 //
 //Bluetooth stuff
@@ -189,6 +180,20 @@ void change_digits(int col, int numTime, int numTop, int numBtm)
 }
 
 /**
+ * Convert
+ **/
+void toUpperCase(char *a_pchStr, int a_nMaxLen)
+{
+    for (int i = 0; (i < a_nMaxLen) && (a_pchStr[i] != 0); ++i)
+    {
+        if ((a_pchStr[i] >= 'a') && (a_pchStr[i] <= 'z'))
+        {
+            a_pchStr[i] -= 32;
+        }
+    }
+}
+
+/**
  * Changes the 3-letters representation of 'day of week' (e.g. SUN).
  * Its background colour acts as 'bluetooth connectivity' indication:
  *   Coloured (AM/PM colour): connected; dark (black): disconnected.
@@ -196,10 +201,14 @@ void change_digits(int col, int numTime, int numTop, int numBtm)
  *
  * @param daysSinceSun day of week (0: Sun, etc).
  **/
-void changeDayOfWeek(int daysSinceSun)
+void changeDayOfWeek(struct tm* tick_time)
 {
+    //write abbreviated 'day of week' (weekday name) according to the current locale:
+    strftime(s_dayOfWeek_buffer, sizeof(s_dayOfWeek_buffer), "%a", tick_time);
+    toUpperCase(s_dayOfWeek_buffer, sizeof(s_dayOfWeek_buffer));
+
     TextLayer *layer = text_layer[TXT_LAYER_DAY_OF_WEEK];
-    text_layer_set_text(layer, DAYS_SINCE_SUN[daysSinceSun]);
+    text_layer_set_text(layer, s_dayOfWeek_buffer);
     //text_layer_set_background_color(layer, m_bIsAm? GColorRed: GColorBlue);
     //text_layer_set_background_color(layer, GColorBlack);
     text_layer_set_background_color(layer, m_bBtConnected? (m_bIsAm? GColorRed: GColorBlue): GColorBlack);
@@ -247,8 +256,7 @@ void display_time(struct tm* tick_time) {
     change_digits(3, m%10, mthsSinceJan % 10, year % 10);
 
     //show day of week in row above ddmm (i.e. 1st row):
-    int daysSinceSun = tick_time->tm_wday;
-    changeDayOfWeek(daysSinceSun);
+    changeDayOfWeek(tick_time);
 }
 
 void handle_minute_tick(struct tm* tick_time, TimeUnits units_changed) {
@@ -313,6 +321,8 @@ void handle_init(void)
     window_stack_push(my_window, true);
     window_set_background_color(my_window, GColorBlack);
 
+    s_dayOfWeek_buffer[0] = 0;
+
     Layer *root_layer = window_get_root_layer(my_window);
     GRect frame = layer_get_frame(root_layer);
 
@@ -362,7 +372,7 @@ void handle_init(void)
     text_layer_set_background_color(text_layer[TXT_LAYER_DAY_OF_WEEK], GColorClear);
     text_layer_set_font(text_layer[TXT_LAYER_DAY_OF_WEEK],
         fonts_get_system_font(FONT_KEY_BITHAM_30_BLACK));
-    text_layer_set_text(text_layer[TXT_LAYER_DAY_OF_WEEK], DAYS_SINCE_SUN[0]);
+    text_layer_set_text(text_layer[TXT_LAYER_DAY_OF_WEEK], s_dayOfWeek_buffer);
     text_layer_set_text_alignment(text_layer[TXT_LAYER_DAY_OF_WEEK], GTextAlignmentLeft);
     //text_layer_set_overflow_mode(text_layer[TXT_LAYER_DAY_OF_WEEK], GTextOverflowModeWordWrap);
     layer_add_child(root_layer, text_layer_get_layer(text_layer[TXT_LAYER_DAY_OF_WEEK]));

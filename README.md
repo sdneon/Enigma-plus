@@ -7,7 +7,7 @@ Modified from [chadheim's](https://github.com/chadheim/pebble-watchface-slider) 
 
 ## Display
 1. 4 of 5 rows of info:
-  1. Day of week (3 letters, uppercase, EN locale).
+  1. Day of week (abbreviated 3 letters, uppercase).
     * This mini-bar (top-left) doubles as 'bluetooth status' indicator.
         * Coloured: connected
         * Dark: disconnected.
@@ -29,3 +29,9 @@ Watch face: AM, bluetooth disconnected, battery charging
 
 ![screenshot 3](https://raw.githubusercontent.com/sdneon/Enigma-plus/master/store/pebble-screenshot-3-PM,charging.png "Watch face: PM, bluetooth connected, battery charging")
 Watch face: PM, bluetooth connected, battery charging
+
+## Changelog
+* v2.4
+  * Weekday name (abbreviated) should now be locale specific, using strftime("%a").
+* v2.3
+  * Initial release.
