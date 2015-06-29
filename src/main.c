@@ -170,7 +170,7 @@ void set_digit(int col, int num) {
  * @param col column to change.
  * @param numTime one of the hhmm (time) digits.
  * @param numTop one of the ddmm (date) digits.
- * @param numTop one of the year digits.
+ * @param numBtm one of the year digits.
  **/
 void change_digits(int col, int numTime, int numTop, int numBtm)
 {
@@ -180,7 +180,9 @@ void change_digits(int col, int numTime, int numTop, int numBtm)
 }
 
 /**
- * Convert
+ * Convert string to uppercase.
+ * @param a_pchStr string to be converted.
+ * @param a_nMaxLen size of string.
  **/
 void toUpperCase(char *a_pchStr, int a_nMaxLen)
 {
