@@ -31,6 +31,10 @@ Watch face: AM, bluetooth disconnected, battery charging
 Watch face: PM, bluetooth connected, battery charging
 
 ## Changelog
+* 2.5
+  * Added optional vibes for:
+    * Bluetooth connection lost: fading vibe.
+    * Hourly chirp. Default: Off, 10am to 8pm.
 * v2.4
   * Weekday name (abbreviated) should now be locale specific, using strftime("%a").
 * v2.3

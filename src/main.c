@@ -14,6 +14,17 @@
  **/
 #include <pebble.h>
 
+//DEBUG flags
+//#define DISABLE_CONFIG
+
+
+//masks for vibes:
+#define MASKV_BTDC   0x20000
+#define MASKV_HOURLY 0x10000
+#define MASKV_FROM   0xFF00
+#define MASKV_TO     0x00FF
+//def: disabled, 10am to 8pm
+#define DEF_VIBES    0x0A14
 #define TXT_LAYER_DAY_OF_WEEK 4
 #define BATTERY_LVL_COL 2
 
@@ -30,11 +41,66 @@ int order[4][10];
 bool m_bIsAm = false;
 static char s_dayOfWeek_buffer[4];
 
+static int m_nVibes = DEF_VIBES;
+// Vibe pattern for loss of BT connection: ON for 400ms, OFF for 100ms, ON for 300ms, OFF 100ms, 100ms:
+static const uint32_t const VIBE_SEG_BT_LOSS[] = { 400, 200, 200, 400, 100 };
+static const VibePattern VIBE_PAT_BT_LOSS = {
+  .durations = VIBE_SEG_BT_LOSS,
+  .num_segments = ARRAY_LENGTH(VIBE_SEG_BT_LOSS),
+};
+
+//
+//Configuration stuff via AppMessage API
+//
+#define KEY_VIBES 0
+
+static void inbox_received_callback(DictionaryIterator *iterator, void *context) {
+    // Get the first pair
+    Tuple *t = dict_read_first(iterator);
+    int nNewValue, i;
+
+    // Process all pairs present
+    while(t != NULL) {
+        // Process this pair's key
+        //APP_LOG(APP_LOG_LEVEL_DEBUG, "Key:%d received with value:%d", (int)t->key, (int)t->value->int32);
+        switch (t->key) {
+            case KEY_VIBES:
+                nNewValue = t->value->int32;
+                if (m_nVibes != nNewValue)
+                {
+                    m_nVibes = nNewValue;
+                }
+                break;
+        }
+
+        // Get next pair, if any
+        t = dict_read_next(iterator);
+    }
+}
+
+static void inbox_dropped_callback(AppMessageResult reason, void *context) {
+    APP_LOG(APP_LOG_LEVEL_ERROR, "Message dropped!");
+}
+
+static void outbox_failed_callback(DictionaryIterator *iterator, AppMessageResult reason, void *context) {
+    APP_LOG(APP_LOG_LEVEL_ERROR, "Outbox send failed!");
+}
+
+static void outbox_sent_callback(DictionaryIterator *iterator, void *context) {
+    APP_LOG(APP_LOG_LEVEL_INFO, "Outbox send success!");
+}
+
+
 //
 //Bluetooth stuff
 //
 bool m_bBtConnected = false;
 static void bt_handler(bool connected) {
+    if (!connected && m_bBtConnected //vibrate once upon BT connection lost
+        && (m_nVibes & MASKV_BTDC)) //only if option enabled
+    {
+        vibes_enqueue_custom_pattern(VIBE_PAT_BT_LOSS);
+    }
     m_bBtConnected = connected;
     TextLayer *layer = text_layer[TXT_LAYER_DAY_OF_WEEK];
     if (layer)
@@ -230,6 +296,26 @@ void display_time(struct tm* tick_time) {
     int h = tick_time->tm_hour;
     int m = tick_time->tm_min;
 
+    if ((m_nVibes & MASKV_HOURLY) //option enabled to vibrate hourly
+        && (m == 0)) //hourly mark reached
+    {
+        int from = (m_nVibes & MASKV_FROM) >> 8,
+            to = m_nVibes & MASKV_TO;
+        bool bShake = false;
+        if (from <= to)
+        {
+            bShake = (h >= from) && (h <= to);
+        }
+        else
+        {
+            bShake = (h >= from) || (h <= to);
+        }
+        if (bShake)
+        {
+            vibes_double_pulse();
+        }
+    }
+
     m_bIsAm = (h < 12);
 
     // If watch is in 12hour mode
@@ -314,11 +400,35 @@ void fill_order(int i) {
     }
 }
 
+void readConfig()
+{
+    if (persist_exists(KEY_VIBES))
+    {
+        m_nVibes = persist_read_int(KEY_VIBES);
+    }
+}
+
+void saveConfig()
+{
+    persist_write_int(KEY_VIBES, m_nVibes);
+}
+
 //
 //Window setup sutff
 //
 void handle_init(void)
 {
+#ifndef DISABLE_CONFIG
+    readConfig();
+    // Register callbacks
+    app_message_register_inbox_received(inbox_received_callback);
+    app_message_register_inbox_dropped(inbox_dropped_callback);
+    app_message_register_outbox_failed(outbox_failed_callback);
+    app_message_register_outbox_sent(outbox_sent_callback);
+    // Open AppMessage
+    app_message_open(app_message_inbox_size_maximum(), app_message_outbox_size_maximum());
+#endif
+
     my_window = window_create();
     window_stack_push(my_window, true);
     window_set_background_color(my_window, GColorBlack);
@@ -396,7 +506,17 @@ void handle_init(void)
     battery_handler(battery_state_service_peek());
 }
 
-void handle_deinit(void) {
+void handle_deinit(void)
+{
+    bluetooth_connection_service_unsubscribe();
+    battery_state_service_unsubscribe();
+    tick_timer_service_unsubscribe();
+
+#ifndef DISABLE_CONFIG
+    app_message_deregister_callbacks();
+    saveConfig();
+#endif
+
     for (int i = 0; i < 5; ++i)
     {
         text_layer_destroy(text_layer[i]);
