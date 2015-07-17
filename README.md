@@ -30,6 +30,9 @@ Watch face: AM, bluetooth disconnected, battery charging
 ![screenshot 3](https://raw.githubusercontent.com/sdneon/Enigma-plus/master/store/pebble-screenshot-3-PM,charging.png "Watch face: PM, bluetooth connected, battery charging")
 Watch face: PM, bluetooth connected, battery charging
 
+## Dev Notes
+Be warned: PebbleKit JS hates "+" (plus sign) in app names (in appinfo.json) and will crash, thereby causing app configuration page to fail!
+
 ## Changelog
 * 2.5
   * Added optional vibes for:
