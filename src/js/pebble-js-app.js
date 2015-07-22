@@ -4,7 +4,7 @@
 
 var VERSION = 25,   //i.e. v2.5; for sending to config page
     //Defaults:
-    DEF_VIBES = 0X10A14,
+    DEF_VIBES = 0X00A14,
     watchConfig = {
         KEY_VIBES: DEF_VIBES
     },
