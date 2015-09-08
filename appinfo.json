@@ -3,7 +3,10 @@
     "configurable"
   ],
   "appKeys": {
-    "KEY_VIBES": 0
+    "KEY_VIBES": 0,
+    "row2": 1,
+    "row4": 2,
+    "timezone2": 3
   },
   "resources": {
     "media": [
@@ -24,7 +27,7 @@
   "longName": "Enigma plus (Digital, Color) Watch Face",
   "versionCode": 2,
   "companyName": "neon",
-  "versionLabel": "2.5",
+  "versionLabel": "2.6",
   "uuid": "e91a944a-fdbb-4953-8931-f96c7772ffa7",
   "watchapp": {
     "watchface": true

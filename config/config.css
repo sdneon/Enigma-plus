@@ -69,6 +69,35 @@
 .onoffswitch-checkbox:checked + .onoffswitch-label .onoffswitch-gps-switch {
 	right: 0px;
 }
+/* Date format switch*/
+.onoffswitch-date {
+}
+.onoffswitch-date-inner:before {
+	content: "MMDD" !important;
+}
+.onoffswitch-date-inner:after {
+	content: "DDMM" !important;
+	color: white;
+	background-color: #ff2e12;
+}
+/* 4th row switch*/
+.onoffswitch-row4 {
+	width: 150px;
+}
+.onoffswitch-row4-inner:before {
+	content: "Show Dual Time" !important;
+}
+.onoffswitch-row4-inner:after {
+	content: "Show Year" !important;
+	color: white;
+	background-color: #2673ec;
+}
+.onoffswitch-row4-switch {
+	right: 110px;
+}
+.onoffswitch-checkbox:checked + .onoffswitch-label .onoffswitch-row4-switch {
+	right: 0px;
+}
 
 /*
  * @CSS3 Metro Dropdown

@@ -16,7 +16,7 @@
 
 //DEBUG flags
 //#define DISABLE_CONFIG
-
+//#define DEBUG_MODE 1
 
 //masks for vibes:
 #define MASKV_BTDC   0x20000
@@ -27,9 +27,25 @@
 #define DEF_VIBES    0x0A14
 #define TXT_LAYER_DAY_OF_WEEK 4
 #define BATTERY_LVL_COL 2
+#define DEF_USE_MMDD false
+#define DEF_DUAL_TIME false
+#define DEF_TIMEZONE2 65
+
+#define A_DAY_IN_MINS (24 * 60)
+
+const float TIMEZONE_OFFSETS[] = {
+ 0, -12, -11, -10,  -9,  -8,  -8,  -7,  -7,  -7,
+-6,  -6,  -6,  -6,  -5,  -5,  -5,  -4,  -4,  -4,
+-4,-3.5,  -3,  -3,  -3,  -3,  -2,  -1,  -1,   0,
+0,    1,   1,   1,   1,   1,   2,   2,   2,   2,
+2,    2,   2,   2,   2,   3,   3,   3,   3, 3.5,
+4,    4,   4, 4.5,   5,   5, 5.5, 5.5,5.75,   6,
+6,  6.5,   7,   7,   8,   8,   8,   8,   8,   9,
+9,    9, 9.5, 9.5,  10,  10,  10,  10,  10,  11,
+12,  12,  13};
 
 Window *my_window;
-Layer *time_box_layer, *battery_level_layer;
+Layer *time_box_layer, *time_box_layer2, *battery_level_layer;
 TextLayer *text_layer[5];
 PropertyAnimation *animations[5] = {0};
 GRect to_rect[6];
@@ -42,6 +58,12 @@ bool m_bIsAm = false;
 static char s_dayOfWeek_buffer[4];
 
 static int m_nVibes = DEF_VIBES;
+static bool m_bUseMMDD = DEF_USE_MMDD;
+static bool m_bDualTime = DEF_DUAL_TIME;
+static int m_nTimezone2 = DEF_TIMEZONE2;
+//time info for dual time:
+int m_nHours2nd = 0, m_nMins2nd = 0;
+bool m_bisAm2nd = false;
 // Vibe pattern for loss of BT connection: ON for 400ms, OFF for 100ms, ON for 300ms, OFF 100ms, 100ms:
 static const uint32_t const VIBE_SEG_BT_LOSS[] = { 400, 200, 200, 400, 100 };
 static const VibePattern VIBE_PAT_BT_LOSS = {
@@ -49,15 +71,23 @@ static const VibePattern VIBE_PAT_BT_LOSS = {
   .num_segments = ARRAY_LENGTH(VIBE_SEG_BT_LOSS),
 };
 
+//forward declaration
+void display_time(struct tm* tick_time);
+void fill_digits(int i);
+
 //
 //Configuration stuff via AppMessage API
 //
 #define KEY_VIBES 0
+#define KEY_ROW2  1
+#define KEY_ROW4  2
+#define KEY_TIMEZONE2 3
 
 static void inbox_received_callback(DictionaryIterator *iterator, void *context) {
     // Get the first pair
     Tuple *t = dict_read_first(iterator);
-    int nNewValue, i;
+    int nNewValue;
+    bool bNewValue, bNeedUpdate = false;
 
     // Process all pairs present
     while(t != NULL) {
@@ -71,10 +101,40 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
                     m_nVibes = nNewValue;
                 }
                 break;
+            case KEY_ROW2:
+                bNewValue = !!t->value->int32;
+                if (m_bUseMMDD != bNewValue)
+                {
+                    m_bUseMMDD = bNewValue;
+                    bNeedUpdate = true;
+                }
+                break;
+            case KEY_ROW4:
+                bNewValue = !!t->value->int32;
+                if (m_bDualTime != bNewValue)
+                {
+                    m_bDualTime = bNewValue;
+                    bNeedUpdate = true;
+                }
+                break;
+            case KEY_TIMEZONE2:
+                nNewValue = t->value->int32;
+                if (m_nTimezone2 != nNewValue)
+                {
+                    m_nTimezone2 = nNewValue;
+                    bNeedUpdate = true;
+                }
+                break;
         }
 
         // Get next pair, if any
         t = dict_read_next(iterator);
+    }
+    if (bNeedUpdate)
+    {
+        time_t now = time(NULL);
+        struct tm *tick_time = localtime(&now);
+        display_time(tick_time);
     }
 }
 
@@ -192,6 +252,18 @@ void time_box_layer_update_proc(Layer *layer, GContext *ctx) {
 //    graphics_draw_rect(ctx, grect_crop(r, 1));
 }
 
+void time_box_layer_update_proc2(Layer *layer, GContext *ctx) {
+    GRect bounds = layer_get_bounds(layer);
+    GPoint center = grect_center_point(&bounds);
+    GRect r = GRect(bounds.origin.x, center.y + 24, bounds.size.w, 48);
+
+    graphics_context_set_stroke_color(ctx, !m_bDualTime?
+        GColorBlack: (m_bisAm2nd? GColorRed: GColorBlue));
+    graphics_context_set_fill_color(ctx, !m_bDualTime?
+        GColorBlack: (m_bisAm2nd? GColorRed: GColorBlue));
+    graphics_fill_rect(ctx, r, 0, GCornerNone);
+}
+
 //overwrites 'digits' with our desired 'ddmm' or 'year' digit (num)
 void change_digit(int col, int ref, int num, int off)
 {
@@ -295,6 +367,11 @@ void changeDayOfWeek(struct tm* tick_time)
 void display_time(struct tm* tick_time) {
     int h = tick_time->tm_hour;
     int m = tick_time->tm_min;
+#ifdef DEBUG_MODE
+    h = m;
+    m = tick_time->tm_sec;
+    if ((m%5) != 0) return; //update every 5secs to allow time for animation
+#endif
 
     if ((m_nVibes & MASKV_HOURLY) //option enabled to vibrate hourly
         && (m == 0)) //hourly mark reached
@@ -315,14 +392,28 @@ void display_time(struct tm* tick_time) {
             vibes_double_pulse();
         }
     }
+#ifndef DEBUG_MODE
+    if (m == 0)
+#else
+    if ((m%15) == 0) //every 15 secs
+#endif
+    {
+        //reset digits hourly
+        for (int i = 0; i < 4; ++i)
+        {
+            //fill_order(i);
+            //fill_offsets(i);
+            fill_digits(i);
+        }
+    }
 
     m_bIsAm = (h < 12);
 
     // If watch is in 12hour mode
-    if(!clock_is_24h_style()) {
-        if(h == 0) { //Midnight to 1am
+    if (!clock_is_24h_style()) {
+        if (h == 0) { //Midnight to 1am
             h = 12;
-        } else if(h > 12) { //1pm to 11:59pm
+        } else if (h > 12) { //1pm to 11:59pm
             h -= 12;
         }
     }
@@ -338,13 +429,84 @@ void display_time(struct tm* tick_time) {
     int year = tick_time->tm_year + 1900;
     int mthsSinceJan = tick_time->tm_mon + 1; //base 0
     int dayOfMth = tick_time->tm_mday; //base 1
-    change_digits(0, h/10, dayOfMth / 10, year / 1000);
-    change_digits(1, h%10, dayOfMth % 10, (year % 1000) / 100);
-    change_digits(2, m/10, mthsSinceJan / 10, (year % 100) / 10);
-    change_digits(3, m%10, mthsSinceJan % 10, year % 10);
+    int ddmm1, ddmm2, ddmm3, ddmm4,
+        year1, year2, year3, year4;
+    if (!m_bUseMMDD)
+    {   //DDMM format:
+        ddmm1 = dayOfMth / 10;
+        ddmm2 = dayOfMth % 10;
+        ddmm3 = mthsSinceJan / 10;
+        ddmm4 = mthsSinceJan % 10;
+    }
+    else
+    {   //MMDD format:
+        ddmm3 = dayOfMth / 10;
+        ddmm4 = dayOfMth % 10;
+        ddmm1 = mthsSinceJan / 10;
+        ddmm2 = mthsSinceJan % 10;
+    }
+    if (!m_bDualTime)
+    {
+        year1 = year / 1000;
+        year2 = (year % 1000) / 100;
+        year3 = (year % 100) / 10;
+        year4 = year % 10;
+    }
+    else
+    {
+        time_t timeUtc = time(NULL);
+        struct tm *time2nd = gmtime(&timeUtc);
+        int minsTotal2nd = time2nd->tm_hour * 60 + time2nd->tm_min;
+#ifdef DEBUG_MODE
+        minsTotal2nd = time2nd->tm_min * 60 + time2nd->tm_sec;
+#endif
+        minsTotal2nd += TIMEZONE_OFFSETS[m_nTimezone2] * 60;
+        //ensure minsTotal2nd remains within valid range:
+        if (minsTotal2nd < 0)
+        {
+            minsTotal2nd += A_DAY_IN_MINS;
+        }
+        else if (minsTotal2nd >= A_DAY_IN_MINS)
+        {
+            minsTotal2nd -= A_DAY_IN_MINS;
+        }
+        m_nHours2nd = minsTotal2nd / 60;
+        m_nMins2nd = minsTotal2nd % 60;
+        m_bisAm2nd = m_nHours2nd < 12;
+        if (!clock_is_24h_style())
+        {
+            if (m_nHours2nd == 0) { //Midnight to 1am
+                m_nHours2nd = 12;
+            } else if (m_nHours2nd > 12) { //1pm to 11:59pm
+                m_nHours2nd -= 12;
+            }
+        }
+        year1 = m_nHours2nd/10;
+        year2 = m_nHours2nd%10;
+        year3 = m_nMins2nd/10;
+        year4 = m_nMins2nd%10;
+    }
+    change_digits(0, h/10, ddmm1, year1);
+    change_digits(1, h%10, ddmm2, year2);
+    change_digits(2, m/10, ddmm3, year3);
+    change_digits(3, m%10, ddmm4, year4);
 
     //show day of week in row above ddmm (i.e. 1st row):
     changeDayOfWeek(tick_time);
+
+/*
+//TRY gmtime():
+    #define MST (-7)
+    #define UTC (0)
+    #define CCT (+8)
+    time_t rawtime;
+    struct tm * ptm;
+    rawtime = time(NULL);
+    ptm = gmtime(&rawtime);
+    APP_LOG(APP_LOG_LEVEL_DEBUG, "Phoenix, AZ (U.S.) :  %2d:%02d\n", (ptm->tm_hour+MST)%24, ptm->tm_min);
+    APP_LOG(APP_LOG_LEVEL_DEBUG, "Reykjavik (Iceland) : %2d:%02d\n", (ptm->tm_hour+UTC)%24, ptm->tm_min);
+    APP_LOG(APP_LOG_LEVEL_DEBUG, "Beijing (China) :     %2d:%02d\n", (ptm->tm_hour+CCT)%24, ptm->tm_min);
+*/
 }
 
 void handle_minute_tick(struct tm* tick_time, TimeUnits units_changed) {
@@ -406,11 +568,26 @@ void readConfig()
     {
         m_nVibes = persist_read_int(KEY_VIBES);
     }
+    if (persist_exists(KEY_ROW2))
+    {
+        m_bUseMMDD = persist_read_bool(KEY_ROW2);
+    }
+    if (persist_exists(KEY_ROW4))
+    {
+        m_bDualTime = persist_read_bool(KEY_ROW4);
+    }
+    if (persist_exists(KEY_TIMEZONE2))
+    {
+        m_nTimezone2 = persist_read_int(KEY_TIMEZONE2);
+    }
 }
 
 void saveConfig()
 {
     persist_write_int(KEY_VIBES, m_nVibes);
+    persist_write_bool(KEY_ROW2, m_bUseMMDD);
+    persist_write_bool(KEY_ROW4, m_bDualTime);
+    persist_write_int(KEY_TIMEZONE2, m_nTimezone2);
 }
 
 //
@@ -442,6 +619,10 @@ void handle_init(void)
     time_box_layer = layer_create(frame);
     layer_set_update_proc(time_box_layer, time_box_layer_update_proc);
     layer_add_child(root_layer, time_box_layer);
+    //Add coloured time row layer for dual time
+    time_box_layer2 = layer_create(frame);
+    layer_set_update_proc(time_box_layer2, time_box_layer_update_proc2);
+    layer_add_child(root_layer, time_box_layer2);
 
     //Add coloured battery-level column layer 1st so that it is below digits (text) layers:
     battery_level_layer = layer_create(GRect(BATTERY_LVL_COL*frame.size.w/4, -2, frame.size.w/4, frame.size.h*3 + 4));
@@ -493,7 +674,11 @@ void handle_init(void)
     struct tm *tick_time = localtime(&now);
     display_time(tick_time);
 
+#ifdef DEBUG_MODE
+    tick_timer_service_subscribe(SECOND_UNIT, &handle_minute_tick);
+#else
     tick_timer_service_subscribe(MINUTE_UNIT, &handle_minute_tick);
+#endif
 
     // Subscribe to Bluetooth updates
     bluetooth_connection_service_subscribe(bt_handler);
@@ -524,6 +709,7 @@ void handle_deinit(void)
             property_animation_destroy(animations[i]);
     }
     layer_destroy(time_box_layer);
+    layer_destroy(time_box_layer2);
     layer_destroy(battery_level_layer);
     window_destroy(my_window);
 }
